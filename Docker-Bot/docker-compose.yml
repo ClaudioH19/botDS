@@ -5,4 +5,4 @@ services:
       context: .    # Construye la imagen usando el Dockerfile en el directorio actual
       dockerfile: Dockerfile  # Especifica el Dockerfile para la construcción
     environment: # Pasa tu clave API de OpenAI como una variable de entorno
-      - DISCORD_BOT_TOKEN=MTE3MjI3MjQxOTY1NDg2OTAxMw.GDPvDE.Zy-CvSETAEiSlnZdSMnpStbvgpyvkHXf6xxQ9E # Pasa el token del bot de Discord como variable de entorno
+      - DISCORD_BOT_TOKEN=tokencambiado # Pasa el token del bot de Discord como variable de entorno
