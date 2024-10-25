@@ -25,10 +25,13 @@ ytdl_format_options = {
 }
 
 ffmpeg_options = {
-    'options': '-vn -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'
+    'options': '-vn -reconnect 3 -reconnect_streamed 3 -reconnect_delay_max 5'
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+
+queue = []
+loop=False
 
 # Clase para reproducir audio desde un enlace
 class YTDLSource(discord.PCMVolumeTransformer):
@@ -52,35 +55,57 @@ class YTDLSource(discord.PCMVolumeTransformer):
 async def on_ready():
     print(f'Conectado como {bot.user}')
 
+
+async def play_next(ctx):
+    if len(queue) > 0:
+        next_song_url= queue.pop(0)
+        player = await YTDLSource.from_url(next_song_url,loop=bot.loop, stream=True)
+        ctx.voice_client.play(player,after=lambda e: bot.loop.create_task(play_next(ctx)))
+        await ctx.send(f"Reproduciendo: {player.title}")
+    else:
+        await ctx.send("La cola ha terminado.")
+
+
 @bot.command()
 async def play(ctx, url: str):
-    # Verifica si el bot ya está conectado a un canal de voz
-    if ctx.voice_client is None:
-        if ctx.author.voice:
-            channel = ctx.author.voice.channel
-            voice_client = await channel.connect()
-        else:
-            await ctx.send("Debes estar en un canal de voz para que me pueda unir.")
-            return
-    else:
-        voice_client = ctx.voice_client  # Reutiliza la conexión existente
+    if ctx.author.voice:
+        channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            await channel.connect()
 
-    # Obtener la fuente de audio de YouTube
-    async with ctx.typing():
-        try:
-            player = await YTDLSource.from_url(url, loop=bot.loop, stream=True)
-            voice_client.play(player, after=lambda e: print(f"Error en la reproducción: {e}") if e else None)
-            await ctx.send(f"Reproduciendo: {player.title}")
-        except Exception as e:
-            await ctx.send(f"Ocurrió un error: {e}")
-            print(f"Error: {e}")
-            
+        queue.append(url)
+        await ctx.send(f"Agregado a la cola: {url}")
+
+        #reproducir si no hay nada reproduciendo
+        if not ctx.voice_client.is_playing():
+            await play_next(ctx)
+    else:
+        await ctx.send("Debes estar en un canal de voz para poder usar este comando.")
+
+@bot.command()
+async def songs(ctx):
+    if len(queue)>0:
+        await ctx.send(f"Cola de reproducción: {', '.join(queue)}")
+    else:
+        await ctx.send("La cola está vacía.")
+
+@bot.command()
+async def skip(ctx):
+    if ctx.voice_client.is_playing():
+        ctx.voice_client.stop()
+        await ctx.send("Saltando canción.")
+    else:
+        await ctx.send("No se está reproduciendo ninguna canción.")
+
 
 # Comando para detener la reproducción
 @bot.command()
 async def stop(ctx):
     if ctx.voice_client:
+        queue.clear()
         await ctx.voice_client.disconnect()
+        await ctx.send("Reproducción detenida.")
+
 
 @bot.command()
 async def saludo(ctx):
